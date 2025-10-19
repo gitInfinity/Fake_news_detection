@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.h5
+*.model
+.ipynb_checkpoints/
+.DS_Store
+.env
+.vscode/
+
+# If you want to ignore data files too
+# *.csv
+# data/
+
+# Jupyter
+.ipynb_checkpoints
