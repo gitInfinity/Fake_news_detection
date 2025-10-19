@@ -23,7 +23,6 @@ This README explains how the project is organized, how to set up a reproducible 
 - [Troubleshooting](#troubleshooting)
 - [Development & Testing](#development--testing)
 - [Git & .gitignore notes](#git--gitignore-notes)
-- [License](#license)
 
 ---
 
