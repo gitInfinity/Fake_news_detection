@@ -104,6 +104,28 @@ def _download_gdrive(gdrive_id: str, dest: Path, force: bool = False) -> None:
 
 # --- Main ---
 
+
+
+    def _env_sources_for(filename: str) -> tuple[str | None, str | None]:
+        """Look up environment variables for URL or Google Drive id for a filename.
+
+        Supports short keys for the two default filenames and generic derived keys.
+        Returns (url, gdrive_id) where either may be None.
+        """
+        # short convenient environment variable names for common files
+        short_map = {
+            "fake_news_classifier.h5": ("MODEL_FAKE_URL", "MODEL_FAKE_GDRIVE_ID"),
+            "word2vec_model.model": ("MODEL_W2V_URL", "MODEL_W2V_GDRIVE_ID"),
+        }
+        if filename in short_map:
+            key_url, key_gid = short_map[filename]
+            return (os.getenv(key_url), os.getenv(key_gid))
+
+        # otherwise derive an env var name from filename
+        base = filename.upper().replace('.', '_').replace('-', '_').replace(' ', '_')
+        url = os.getenv(f"{base}_URL") or os.getenv(f"{base}_HTTP_URL")
+        gdrive = os.getenv(f"{base}_GDRIVE_ID") or os.getenv(f"{base}_GDRIVE")
+        return (url, gdrive)
 def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Download model artifacts into models/")
     parser.add_argument("--force", action="store_true", help="Overwrite existing files")
@@ -121,8 +143,15 @@ def main(argv: List[str] | None = None) -> int:
             continue
         dest = MODELS_DIR / filename
 
+        # explicit config in script
         url = m.get("url")
         gdrive_id = m.get("gdrive_id")
+
+        # if not provided in the script, try environment variables
+        if not url or not gdrive_id:
+            env_url, env_gdrive = _env_sources_for(filename)
+            url = url or env_url
+            gdrive_id = gdrive_id or env_gdrive
 
         try:
             if url:
