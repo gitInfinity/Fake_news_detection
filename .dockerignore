@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.h5
+*.model
+.ipynb_checkpoints/
+.DS_Store
+.git
+.env
+.vscode/
+
+# Optional: ignore data files
+# data/
+# *.csv

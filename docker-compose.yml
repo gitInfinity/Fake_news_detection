@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    image: fake-news-app:latest
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount the models directory so you can replace models without rebuilding the image
+      - ./models:/app/models:rw
+      # Optionally mount model files at project root
+      - ./fake_news_classifier.h5:/app/fake_news_classifier.h5:ro
+      - ./word2vec_model.model:/app/word2vec_model.model:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped

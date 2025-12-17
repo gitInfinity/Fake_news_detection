@@ -7,11 +7,30 @@ from typing import Tuple
 import os
 import logging
 from models import load_w2v_model, load_keras_model
+import joblib
+
+
+class SklearnClassifierWrapper:
+    """Wrap a scikit-learn classifier to provide a Keras-like `predict` API
+
+    `predict(X, verbose=0)` returns an array of shape (n_samples, 1) with
+    the positive-class probability in the single column, matching how the
+    original Keras model was used in the app.
+    """
+    def __init__(self, clf):
+        self.clf = clf
+
+    def predict(self, X, verbose=0):
+        # ensure numpy array
+        import numpy as _np
+        probs = self.clf.predict_proba(_np.asarray(X))[:, 1]
+        return probs.reshape(-1, 1)
 
 # Default settings
 EMBEDDING_DIM = 100
 
 logger = logging.getLogger(__name__)
+DEMO_MODE = False
 try:
     STOP_WORDS = set(stopwords.words('english'))
 except Exception:
@@ -55,19 +74,44 @@ def load_models() -> Tuple[object, object]:
     default_w2v_path = os.path.join(os.getcwd(), "models", "word2vec_model.model")
     default_keras_path = os.path.join(os.getcwd(), "models", "fake_news_classifier.h5")
 
+    global DEMO_MODE
+
     try:
+        # prefer real model names
         w2v_path = default_w2v_path if os.path.exists(default_w2v_path) else None
         keras_path = default_keras_path if os.path.exists(default_keras_path) else None
 
-        w2v = load_w2v_model(w2v_path)
-        keras = load_keras_model(keras_path)
+        # fallback demo model paths
+        demo_w2v_path = os.path.join(os.getcwd(), "models", "word2vec_demo.model")
+        demo_clf_path = os.path.join(os.getcwd(), "models", "demo_classifier.joblib")
 
-        # Attempt to compile the model so compiled metrics are available (safe for inference)
-        try:
-            keras.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        except Exception:
-            # Compilation is optional for inference; ignore failures
-            logger.debug("Could not compile Keras model after loading.")
+        # Load Word2Vec: prefer real model, otherwise load demo if present
+        if w2v_path is not None:
+            w2v = load_w2v_model(w2v_path)
+        elif os.path.exists(demo_w2v_path):
+            w2v = load_w2v_model(demo_w2v_path)
+            logger.info("Loaded demo Word2Vec model")
+            DEMO_MODE = True
+        else:
+            # try default loader with None (it will raise FileNotFoundError)
+            w2v = load_w2v_model(w2v_path)
+
+        # Load classifier: prefer Keras .h5; if not present, fall back to sklearn demo
+        if keras_path is not None:
+            keras = load_keras_model(keras_path)
+            # Try to compile so metrics are available (optional)
+            try:
+                keras.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            except Exception:
+                logger.debug("Could not compile Keras model after loading.")
+        elif os.path.exists(demo_clf_path):
+            clf = joblib.load(demo_clf_path)
+            keras = SklearnClassifierWrapper(clf)
+            logger.info("Loaded demo scikit-learn classifier and wrapped for predict().")
+            DEMO_MODE = True
+        else:
+            # load_keras_model will raise FileNotFoundError if no model found
+            keras = load_keras_model(keras_path)
 
         return w2v, keras
     except FileNotFoundError as e:
@@ -77,3 +121,8 @@ def load_models() -> Tuple[object, object]:
     except Exception as e:
         logger.exception("Unexpected error loading models: %s", e)
         raise
+
+
+def using_demo_models() -> bool:
+    """Return True if the demo fallback models were used on load."""
+    return DEMO_MODE

@@ -5,6 +5,9 @@ __pycache__/
 *.pyd
 *.h5
 *.model
+# Keep default ignore for models but allow the tiny demo artifacts we include for local demos
+!/models/word2vec_demo.model
+!/models/demo_classifier.joblib
 .ipynb_checkpoints/
 .DS_Store
 .env
